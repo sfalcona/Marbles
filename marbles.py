@@ -13,7 +13,7 @@ class ball:
 		self.acc = [0, 10]
 		self.color = color
 		self.name = name
-		self.radius = 6
+		self.radius = 4
 
 	def update(self, limit):
 		self.vel[0] += int(self.acc[0] / 4)
@@ -49,13 +49,29 @@ class ball:
 
 
 class obstacle:
-	def __init(self, coord):
-		self.coord = coord
+	def __init__(self, surf, color, coord1, coord2):
+		self.coord1 = coord1
+		self.coord2 = coord2
+		self.surf = surf
+		self.color = color
+		self.width = 5
+		self.norm = []
+
+
+	def draw(self):
+		pygame.draw.line(self.surf, self.color, tuple(self.coord1), tuple(self.coord2), self.width)
+
+	def getNorm(self):
+		mod = math.sqrt((self.coord1[0] - self.coord2[0])**2 + (self.coord1[1] - self.coord2[1])**2) 
+		difx = (self.coord2[0] - self.coord1[0])
+		dify = (self.coord2[1] - self.coord1[1])
+		self.norm = [-dify/mod, difx/mod]
 
 
 class board:
 	def __init__(self, size, color):
 		self.players = []
+		self.obstacles = []
 		self.ww = size[0]
 		self.wh = size[1]
 		self.surf = pygame.display.set_mode((self.ww, self.wh))
@@ -67,9 +83,16 @@ class board:
 		player = ball(self.surf, name, color, pos, vel)
 		self.players.append(player)
 
+	def addObstacle(self, color, coord1, coord2):
+		obs = obstacle(self.surf, color, coord1, coord2)
+		self.obstacles.append(obs)
+
 	def draw(self):
 		for marble in self.players:
 			marble.draw()
+		for obstacle in self.obstacles:
+			obstacle.draw()
+
 		pygame.display.update()
 
 	def resolveColl(self, p1, p2):
@@ -111,7 +134,14 @@ class board:
 		p1.vel[0] = XSpeed * 0.8
 		p1.vel[1] = YSpeed * 0.8
 
-	
+	def resolveObs(self, player, obs):
+		obs.getNorm()
+		intermedio = [ i * 2 * (obs.norm[0]*player.vel[0] + obs.norm[1]*player.vel[1]) for i in obs.norm ]
+		player.vel = [player.vel[0] - intermedio[0], player.vel[1] - intermedio[1]]
+
+	def selfDot(self, item):
+		return  reduce((lambda x, y: x + y), [i*i for i in item])
+
 	def checkColl(self):
 		for player1 in self.players:
 			for player2 in self.players:
@@ -119,11 +149,22 @@ class board:
 					if math.sqrt(((player1.pos[0]-player2.pos[0])**2)  +  ((player1.pos[1]-player2.pos[1])**2)  ) <= (player1.radius+player2.radius):
 						self.resolveColl(player1,player2)
 
+		for player in self.players:
+			for obstacle in self.obstacles:
+				v = [obstacle.coord2[0] - obstacle.coord1[0], obstacle.coord2[1] - obstacle.coord1[1]]
+				a = self.selfDot(v)
+				dum = [obstacle.coord1[0] - player.pos[0], obstacle.coord1[1] - player.pos[1]]
+				b = 2 * (v[0]*dum[0] + v[1]*dum[1])
+				c = self.selfDot(obstacle.coord1) + self.selfDot(player.pos) - 2 * (obstacle.coord1[0] * player.pos[0] + obstacle.coord1[1] * player.pos[1])  - player.radius**2
+				disc = b**2 - 4 * a * c
+				if(disc > 0):
+					self.resolveObs(player, obstacle)
 
 	def update(self):
 		self.surf.fill(self.bg)
 		for player in self.players:
 			player.update((self.ww, self.wh))
+
 
 
 pygame.init()
@@ -136,25 +177,36 @@ white = (255, 255, 255)
 red = (255, 0, 0)
 blue = (0, 0, 255)
 green = (0, 255, 0)
-colors = (black, white, red, blue, green)
-ww = 800
-wh = 600
+colors = (white, red, blue, green)
+ww = 400
+wh = 400
 
 
 a = board((ww, wh), bg)
-for i in range(10):
-	a.addPlayer("Player " + str(i), random.choice(colors), [random.randint(0,ww), random.randint(0,wh)], [random.randint(-100,100), random.randint(-100,100)])
+a.addObstacle(white, [100, 100], [200,180])
+a.addObstacle(white, [300, 300], [350,200])
+for i in range(1):
+	a.addPlayer("Player " + str(i), random.choice(colors), pos = [100 + 10*i, 20], vel = [0,0])
 
 # a.addPlayer("Player " + str(1), white, [300, 0],  [-10, 0])
 # a.addPlayer("Player " + str(2), white, [100, 0], [10, 0])
 i = 150
+
+
+def checkQuit():
+	keystate = pygame.key.get_pressed()
+	for event in pygame.event.get():
+		if event.type == QUIT or keystate[K_ESCAPE]:
+			pygame.quit(); sys.exit()
+
 while(i):
+	checkQuit()
 	a.update()
 	a.draw()
 	a.checkColl()
 	pygame.display.update()
 	pygame.time.delay(20)
-	i -= 1
+
 
 
 pygame.quit()
