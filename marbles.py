@@ -2,8 +2,24 @@ import math
 import random
 import time
 import pygame
+import sys
 from pygame.locals import *
 
+
+
+bg = (20, 20, 50)
+black = (0, 0, 0)
+white = (255, 255, 255)
+red = (255, 0, 0)
+blue = (0, 0, 255)
+green = (0, 255, 0)
+colors = (white, red, blue, green)
+ww = 400
+wh = 800
+
+jugadores = ['Sebastian', 'Chino']
+
+fric = 0.98
 
 class ball:
 	def __init__(self, surf, name="Sebastian", color=(255, 255, 255), pos=[0, 0], vel=[0, 0]):
@@ -13,7 +29,7 @@ class ball:
 		self.acc = [0, 10]
 		self.color = color
 		self.name = name
-		self.radius = 4
+		self.radius = 7
 
 	def update(self, limit):
 		self.vel[0] += int(self.acc[0] / 4)
@@ -23,7 +39,7 @@ class ball:
 
 		if (self.pos[1] < 0 or self.pos[1] > limit[1]):
 			self.pos[1] = 0 if self.pos[1] < 0 else limit[1]
-			self.vel[0] = self.vel[0] * 0.8
+			self.vel[0] = self.vel[0] * fric
 			self.vel[1] = -self.vel[1] / 2
 		if (self.pos[0] < 0 or self.pos[0] > limit[0]):
 			self.pos[0] = 0 if self.pos[0] < 0 else limit[0]
@@ -41,7 +57,8 @@ class ball:
 
 	def draw(self):
 		textsurface = myfont.render(self.name, False, (255, 255, 255))
-		self.surf.blit(textsurface, tuple(self.pos))
+		textpos = (self.pos[0], self.pos[1] - 20)
+		self.surf.blit(textsurface, textpos)
 		pygame.draw.circle(self.surf, self.color, tuple(self.pos), self.radius)
 
 	def __call__(self):
@@ -54,9 +71,8 @@ class obstacle:
 		self.coord2 = coord2
 		self.surf = surf
 		self.color = color
-		self.width = 5
+		self.width = 2
 		self.norm = []
-
 
 	def draw(self):
 		pygame.draw.line(self.surf, self.color, tuple(self.coord1), tuple(self.coord2), self.width)
@@ -70,6 +86,7 @@ class obstacle:
 
 class board:
 	def __init__(self, size, color):
+		self.gameMode = "menu"
 		self.players = []
 		self.obstacles = []
 		self.ww = size[0]
@@ -131,13 +148,14 @@ class board:
 				Angle = 180
 			XSpeed = p1Speed*math.cos(math.radians(Angle))
 			YSpeed = p1Speed*math.sin(math.radians(Angle))
-		p1.vel[0] = XSpeed * 0.8
-		p1.vel[1] = YSpeed * 0.8
+		p1.vel[0] = XSpeed * fric
+		p1.vel[1] = YSpeed * fric
 
 	def resolveObs(self, player, obs):
 		obs.getNorm()
 		intermedio = [ i * 2 * (obs.norm[0]*player.vel[0] + obs.norm[1]*player.vel[1]) for i in obs.norm ]
 		player.vel = [player.vel[0] - intermedio[0], player.vel[1] - intermedio[1]]
+		player.vel = [fric * i for i in player.vel]
 
 	def selfDot(self, item):
 		return  reduce((lambda x, y: x + y), [i*i for i in item])
@@ -157,7 +175,11 @@ class board:
 				b = 2 * (v[0]*dum[0] + v[1]*dum[1])
 				c = self.selfDot(obstacle.coord1) + self.selfDot(player.pos) - 2 * (obstacle.coord1[0] * player.pos[0] + obstacle.coord1[1] * player.pos[1])  - player.radius**2
 				disc = b**2 - 4 * a * c
-				if(disc > 0):
+				maxx = max(obstacle.coord1[0], obstacle.coord2[0])
+				minx = min(obstacle.coord1[0], obstacle.coord2[0])
+				maxy = max(obstacle.coord1[1], obstacle.coord2[1])
+				miny = min(obstacle.coord1[1], obstacle.coord2[1])
+				if(disc > 0 and player.pos[0] > minx and player.pos[1] > miny and player.pos[0] < maxx and player.pos[1] < maxy ):
 					self.resolveObs(player, obstacle)
 
 	def update(self):
@@ -169,43 +191,62 @@ class board:
 
 pygame.init()
 pygame.font.init()
-myfont = pygame.font.SysFont('Comic Sans MS', 20)
-
-bg = (20, 20, 50)
-black = (0, 0, 0)
-white = (255, 255, 255)
-red = (255, 0, 0)
-blue = (0, 0, 255)
-green = (0, 255, 0)
-colors = (white, red, blue, green)
-ww = 400
-wh = 400
+myfont = pygame.font.SysFont('Comic Sans MS', 10)
+myfont2 = pygame.font.SysFont('Comic Sans MS', 40)
+myfont3 = pygame.font.SysFont('Comic Sans MS', 25)
 
 
 a = board((ww, wh), bg)
-a.addObstacle(white, [100, 100], [200,180])
-a.addObstacle(white, [300, 300], [350,200])
-for i in range(1):
-	a.addPlayer("Player " + str(i), random.choice(colors), pos = [100 + 10*i, 20], vel = [0,0])
+a.addObstacle(white, [0, 100], [180,200])
+a.addObstacle(white, [220, 200], [400,100])
 
-# a.addPlayer("Player " + str(1), white, [300, 0],  [-10, 0])
+for i,name in enumerate(jugadores):
+	a.addPlayer(name, random.choice(colors), pos = [random.randint(0,400), 20], vel = [random.randint(-5,5), random.randint(-5,5)])
+
 # a.addPlayer("Player " + str(2), white, [100, 0], [10, 0])
-i = 150
 
+
+gameMode = "menu"
 
 def checkQuit():
 	keystate = pygame.key.get_pressed()
 	for event in pygame.event.get():
 		if event.type == QUIT or keystate[K_ESCAPE]:
 			pygame.quit(); sys.exit()
+		elif event.type == pygame.KEYDOWN:
+			if event.key == pygame.K_e:
+				a.gameMode = "edit"	
+			if event.key == pygame.K_p:
+				print("entro a play")
+				a.gameMode = "play"
+				print(a.gameMode)		
 
-while(i):
+while(1):
+	print(a.gameMode)
 	checkQuit()
-	a.update()
-	a.draw()
-	a.checkColl()
+	if a.gameMode == "menu":
+		textsurface = myfont2.render("LAS BOLITAS xd", False, (255, 255, 255))
+		text_rect = textsurface.get_rect()
+		text_rect.center = (a.surf.get_width()/2, 48)
+		a.surf.blit(textsurface, text_rect)
+		textsurface = myfont3.render("E para editar", False, (255, 255, 255))
+		text_rect = textsurface.get_rect()
+		text_rect.center = (a.surf.get_width()/2, 88)
+		a.surf.blit(textsurface, text_rect)
+		textsurface = myfont3.render("P para jugar", False, (255, 255, 255))
+		text_rect = textsurface.get_rect()
+		text_rect.center = (a.surf.get_width()/2, 118)
+		a.surf.blit(textsurface, text_rect)
+
+	elif a.gameMode == "play":	
+		print("esoty en play")
+		a.update()
+		a.draw()
+		a.checkColl()
+
+
 	pygame.display.update()
-	pygame.time.delay(20)
+	pygame.time.wait(20)
 
 
 
