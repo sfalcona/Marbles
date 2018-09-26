@@ -165,7 +165,7 @@ class board:
 		obs.getNorm()
 		intermedio = [ i * 2 * (obs.norm[0]*player.vel[0] + obs.norm[1]*player.vel[1]) for i in obs.norm ]
 		player.vel = [player.vel[0] - intermedio[0], player.vel[1] - intermedio[1]]
-		player.vel = [fric * i for i in player.vel]
+		player.vel = [ i for i in player.vel]
 
 	def selfDot(self, item):
 		return  reduce((lambda x, y: x + y), [i*i for i in item])
@@ -178,20 +178,23 @@ class board:
 						self.resolveColl(player1,player2)
 
 		for player in self.players:
+			coll = False
 			for obstacle in self.obstacles:
-				v = [obstacle.coord2[0] - obstacle.coord1[0], obstacle.coord2[1] - obstacle.coord1[1]]
-				a = self.selfDot(v)
-				dum = [obstacle.coord1[0] - player.pos[0], obstacle.coord1[1] - player.pos[1]]
-				b = 2 * (v[0]*dum[0] + v[1]*dum[1])
-				c = self.selfDot(obstacle.coord1) + self.selfDot(player.pos) - 2 * (obstacle.coord1[0] * player.pos[0] + obstacle.coord1[1] * player.pos[1])  - ( player.radius + obstacle.width)**2
-				disc = b**2 - 4 * a * c
-				maxx = max(obstacle.coord1[0], obstacle.coord2[0])
-				minx = min(obstacle.coord1[0], obstacle.coord2[0])
-				maxy = max(obstacle.coord1[1], obstacle.coord2[1])
-				miny = min(obstacle.coord1[1], obstacle.coord2[1])
-				if(disc > 0 and player.pos[0] > minx-15 and player.pos[1] > miny-15 and player.pos[0] < maxx+15 and player.pos[1] < maxy+15 ):
-					# self.players[0].color = red
-					self.resolveObs(player, obstacle)
+				if not coll:
+					v = [obstacle.coord2[0] - obstacle.coord1[0], obstacle.coord2[1] - obstacle.coord1[1]]
+					a = self.selfDot(v)
+					dum = [obstacle.coord1[0] - player.pos[0], obstacle.coord1[1] - player.pos[1]]
+					b = 2 * (v[0]*dum[0] + v[1]*dum[1])
+					c = self.selfDot(obstacle.coord1) + self.selfDot(player.pos) - 2 * (obstacle.coord1[0] * player.pos[0] + obstacle.coord1[1] * player.pos[1])  - ( player.radius + obstacle.width)**2
+					disc = b**2 - 4 * a * c
+					maxx = max(obstacle.coord1[0], obstacle.coord2[0])
+					minx = min(obstacle.coord1[0], obstacle.coord2[0])
+					maxy = max(obstacle.coord1[1], obstacle.coord2[1])
+					miny = min(obstacle.coord1[1], obstacle.coord2[1])
+					if(disc > 0 and player.pos[0] > minx-15 and player.pos[1] > miny-15 and player.pos[0] < maxx+15 and player.pos[1] < maxy+15 ):
+						# self.players[0].color = red
+						coll = True
+						self.resolveObs(player, obstacle)
 
 	def update(self):
 		self.surf.fill(self.bg)
